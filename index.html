@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+
+
+  <style>
+    div.tooltip {
+        color: #ffffff;
+        font: 18px calibri;
+        background-color: #000000;
+        padding: 5px;
+        opacity: 1;
+        position: absolute;
+      	border-radius: 5px;
+    }
+    body{
+      	display: flex;
+      	flex-direction: column;
+        }
+
+     div{
+      	display: flex;
+      	flex-direction: column;
+     	  align-items: center;
+        width:900;
+        height: 800;
+        }
+    .title {
+        color: #ffffff;
+     		font: 30px calibri;
+      	align: center;
+        background-color: #000000;
+      	padding: 5px;
+				opacity: 1;
+				position: absolute;
+
+   }
+    .hidden {
+        display: none;
+    }
+	</style>
+</head>
+
+<body>
+     <div class="titlezone">
+     <span class="title"> Taux de grippe en 2014</span>
+    </div>
+
+  <script>
+
+       // Les dégradés de couleurs
+    var color = d3.scaleLinear()
+      .interpolate(d3.interpolate)
+      .range([d3.rgb("#efadb3"), d3.rgb('#d52441')]);
+
+    var w = 900,
+        h = 800;
+
+    var svg = d3.select( "body" )
+      .append( "svg" )
+      .attr( "width", w )
+      .attr( "height", h )
+  ;
+
+    //Projection pour l'affichage en France
+
+    var projection = d3.geoConicConformal().center([2.454071, 46.279229]).scale(2800);
+
+    var path = d3.geoPath()
+                 .projection(projection);
+
+    var tooltip = d3.select('body').append('div')
+    	.attr('class', 'hidden tooltip');
+	 	// Chargement des données de en 2O14 (.csv)
+    d3.csv("grippe2014.csv", function(data) {
+      color.domain([0, 300]);
+		// Chargement des données cadastrales des régions de France (.json)
+      d3.json("regions.json", function(json) {
+    // Corrélation des deux jeux de données grâce à la clé "région"
+        for (var i = 0; i < data.length; i++) {
+          for (var j = 0; j < json.features.length; j++){
+            if(data[i].region == json.features[j].properties.nom){
+		// Création du dossier .json complet
+              Object.keys(data[i]).forEach(function(key) {
+    // Suppression d'une des deux clés "régions"
+                if(key !== "region"){
+                  json.features[j].properties[key] = data[i][key]
+                }
+              });
+            }
+          }
+        }
+
+        svg.selectAll("path")
+          .data(json.features)
+          .enter()
+          .append("path")
+          .attr("d", path)
+          .style("fill", function(d) {
+            var value = 0;
+            Object.keys(d.properties).forEach(function(key) {
+	// Calcul des données du mois de Decembre 2014
+              if(key.indexOf("/12/14") !== -1){
+                value += +d.properties[key]
+              }
+            });
+          if(value !==0){
+            return(color(value))
+          }
+
+        	})
+
+// Création du mousemove "Région"
+        	.on('mousemove', function(d) {
+            var mouse = d3.mouse(svg.node()).map(function(d) {
+            	return parseInt(d);
+            });
+            tooltip.classed('hidden', false)
+            	.attr('style', 'left:' + (mouse[0]) + 'px; top:' + (mouse[1] - 35) + 'px')
+          		.html(d.properties.nom)
+        	})
+// Cacher le mousemove lorsque la souris se déplace
+          .on('mouseleave', function() {
+          	tooltip.classed('hidden', true)
+          });
+      });
+  });
+  </script>
+</body>
